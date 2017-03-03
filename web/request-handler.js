@@ -11,14 +11,15 @@ var actions = {
   'GET': function(request, response) {
     statusCode = 200;
     var urlPath = url.parse(request.url).pathname;
-    console.log("beginning url " + urlPath[0]);
-    console.log("website: " + urlPath.slice(1));
+    //console.log("beginning url " + urlPath[0]);
+    //console.log("website: " + urlPath.slice(1));
     if (urlPath === '/') {
       urlPath = '/index.html';
     }
     helpers.serveAssets(response, urlPath, function() {
-      archive.isUrlInList(urlPath, function(exists) {
-        if(exists) {
+      archive.isUrlInList(urlPath)
+      .then(function(exists) {
+        if (exists) {
           helpers.sendResponse(response, '/loading.html');
         } else {
           helpers.sendResponse(response, '', 404);
@@ -27,7 +28,26 @@ var actions = {
     });
   },
   'POST': function(request, response) {
-
+    helpers.collectData(request, function(url) {
+      url = url.substr(4);
+      archive.isUrlInList(url)
+      .then(function (exists) {
+        if (exists) {
+          archive.isUrlArchived(url)
+          .then(function (exists) {
+            if (exists) {
+              helpers.sendRedirect(response, 'http://' + url);
+            } else {
+              helpers.sendResponse(response, '/loading.html');
+            }
+          });
+        } else {
+          archive.addUrlToList(url)
+          .then(helpers.sendRedirect(response, '/loading.html')
+          );
+        }
+      });
+    });
   }
 };
 exports.handleRequest = function (req, res) {
